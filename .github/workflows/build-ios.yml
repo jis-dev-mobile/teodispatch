@@ -1,0 +1,533 @@
+name: TeoDispatch(API stage) iOS IPA build for App Store and upload v1.0.0 code 1
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: List available Xcode versions
+        run: ls /Applications
+
+      - name: Set up Xcode 16.0
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app
+        
+      - name: Vérifier la version de Xcode
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Installer SVN
+        run: |
+          brew install subversion
+
+      - name: Cloner le projet depuis SVN
+        run: |
+          echo "Téléchargement du code depuis SVN..."
+          svn checkout --username "${{ secrets.SVN_USERNAME }}" --password "${{ secrets.SVN_PASSWORD }}" https://svn.jiscomputing.com/teodispatchmobile/ project
+
+      - name: Configurer les icônes iPad nécessaires
+        run: |
+          cd project
+          mkdir -p ios/Runner/Assets.xcassets/AppIcon.appiconset
+          
+          # Installer ImageMagick
+          brew install imagemagick
+          
+          # Vérifier la version d'ImageMagick pour utiliser la bonne commande
+          MAGICK_VERSION=$(magick --version | head -n 1 | cut -d' ' -f3 | cut -d'.' -f1)
+          if [ "$MAGICK_VERSION" -ge "7" ]; then
+            CONVERT_CMD="magick"
+          else
+            CONVERT_CMD="convert"
+          fi
+          
+          echo "Version d'ImageMagick détectée: $MAGICK_VERSION, utilisation de la commande: $CONVERT_CMD"
+          
+          # Afficher le contenu pour déboguer le chemin
+          echo "Contenu du répertoire actuel:"
+          pwd
+          ls -la
+          
+          echo "Contenu du répertoire des assets:"
+          ls -la ios/Runner/Assets.xcassets/ 2>/dev/null || echo "Répertoire non trouvé"
+          
+          echo "Contenu du répertoire AppIcon.appiconset:"
+          ls -la ios/Runner/Assets.xcassets/AppIcon.appiconset/ 2>/dev/null || echo "Répertoire non trouvé"
+          
+          # Créer une copie de l'icône 1024x1024 si elle existe ou générer une icône de base
+          if [ -f "ios/Runner/Assets.xcassets/AppIcon.appiconset/1024.png" ]; then
+            echo "Utilisation de l'icône existante comme base"
+            cp ios/Runner/Assets.xcassets/AppIcon.appiconset/1024.png icon_base.png
+          else
+            echo "Création d'une icône temporaire"
+            $CONVERT_CMD -size 1024x1024 xc:blue -fill white -gravity center -pointsize 100 -annotate 0 "App" icon_base.png
+          fi
+          
+          # Redimensionner pour les tailles requises pour iPad
+          $CONVERT_CMD icon_base.png -resize 167x167 ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-167x167@1x.png
+          $CONVERT_CMD icon_base.png -resize 152x152 ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-152x152@1x.png
+          
+          # Vérifier si les icônes ont été correctement générées
+          ls -la ios/Runner/Assets.xcassets/AppIcon.appiconset/
+          
+          # Mettre à jour le Contents.json pour inclure ces icônes
+          cd ios/Runner/Assets.xcassets/AppIcon.appiconset
+          
+          # Créer un fichier Contents.json complet si nécessaire
+          cat > Contents.json << 'EOL'
+          {
+            "images" : [
+              {
+                "size" : "20x20",
+                "idiom" : "iphone",
+                "filename" : "Icon-App-20x20@2x.png",
+                "scale" : "2x"
+              },
+              {
+                "size" : "20x20",
+                "idiom" : "iphone",
+                "filename" : "Icon-App-20x20@3x.png",
+                "scale" : "3x"
+              },
+              {
+                "size" : "29x29",
+                "idiom" : "iphone",
+                "filename" : "Icon-App-29x29@1x.png",
+                "scale" : "1x"
+              },
+              {
+                "size" : "29x29",
+                "idiom" : "iphone",
+                "filename" : "Icon-App-29x29@2x.png",
+                "scale" : "2x"
+              },
+              {
+                "size" : "29x29",
+                "idiom" : "iphone",
+                "filename" : "Icon-App-29x29@3x.png",
+                "scale" : "3x"
+              },
+              {
+                "size" : "40x40",
+                "idiom" : "iphone",
+                "filename" : "Icon-App-40x40@2x.png",
+                "scale" : "2x"
+              },
+              {
+                "size" : "40x40",
+                "idiom" : "iphone",
+                "filename" : "Icon-App-40x40@3x.png",
+                "scale" : "3x"
+              },
+              {
+                "size" : "60x60",
+                "idiom" : "iphone",
+                "filename" : "Icon-App-60x60@2x.png",
+                "scale" : "2x"
+              },
+              {
+                "size" : "60x60",
+                "idiom" : "iphone",
+                "filename" : "Icon-App-60x60@3x.png",
+                "scale" : "3x"
+              },
+              {
+                "size" : "20x20",
+                "idiom" : "ipad",
+                "filename" : "Icon-App-20x20@1x.png",
+                "scale" : "1x"
+              },
+              {
+                "size" : "20x20",
+                "idiom" : "ipad",
+                "filename" : "Icon-App-20x20@2x.png",
+                "scale" : "2x"
+              },
+              {
+                "size" : "29x29",
+                "idiom" : "ipad",
+                "filename" : "Icon-App-29x29@1x.png",
+                "scale" : "1x"
+              },
+              {
+                "size" : "29x29",
+                "idiom" : "ipad",
+                "filename" : "Icon-App-29x29@2x.png",
+                "scale" : "2x"
+              },
+              {
+                "size" : "40x40",
+                "idiom" : "ipad",
+                "filename" : "Icon-App-40x40@1x.png",
+                "scale" : "1x"
+              },
+              {
+                "size" : "40x40",
+                "idiom" : "ipad",
+                "filename" : "Icon-App-40x40@2x.png",
+                "scale" : "2x"
+              },
+              {
+                "size" : "76x76",
+                "idiom" : "ipad",
+                "filename" : "Icon-App-76x76@1x.png",
+                "scale" : "1x"
+              },
+              {
+                "size" : "76x76",
+                "idiom" : "ipad",
+                "filename" : "Icon-App-76x76@2x.png",
+                "scale" : "2x"
+              },
+              {
+                "size" : "83.5x83.5",
+                "idiom" : "ipad",
+                "filename" : "Icon-App-83.5x83.5@2x.png",
+                "scale" : "2x"
+              },
+              {
+                "size" : "1024x1024",
+                "idiom" : "ios-marketing",
+                "filename" : "Icon-App-1024x1024@1x.png",
+                "scale" : "1x"
+              },
+              {
+                "size" : "167x167",
+                "idiom" : "ipad",
+                "filename" : "Icon-App-167x167@1x.png",
+                "scale" : "1x"
+              },
+              {
+                "size" : "152x152",
+                "idiom" : "ipad",
+                "filename" : "Icon-App-152x152@1x.png",
+                "scale" : "1x"
+              }
+            ],
+            "info" : {
+              "version" : 1,
+              "author" : "xcode"
+            }
+          }
+          EOL
+
+          # Générer toutes les icônes manquantes
+          cd ../../../..
+          for size in 20 29 40 60 76 83.5; do
+            if [ "$size" = "83.5" ]; then
+              $CONVERT_CMD icon_base.png -resize 167x167 ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png
+            else
+              $CONVERT_CMD icon_base.png -resize ${size}x${size} ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-${size}x${size}@1x.png
+              $CONVERT_CMD icon_base.png -resize $((size*2))x$((size*2)) ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-${size}x${size}@2x.png
+              if [ "$size" != "76" ] && [ "$size" != "83.5" ]; then
+                $CONVERT_CMD icon_base.png -resize $((size*3))x$((size*3)) ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-${size}x${size}@3x.png
+              fi
+            fi
+          done
+          
+          # Créer également l'icône 1024x1024 requise
+          $CONVERT_CMD icon_base.png -resize 1024x1024 ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png
+
+          # Vérifier si les icônes ont été correctement générées une deuxième fois et contents.json
+          ls -la ios/Runner/Assets.xcassets/AppIcon.appiconset/
+          
+      - name: Installer Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.24.5
+          architecture: x64
+
+      - name: Installer les dépendances Flutter
+        run: |
+          cd project
+          flutter pub get
+
+      - name: Corriger la version minimale iOS et configurer RunnerTests
+        run: |
+          cd project/ios
+          sed -i '' 's/platform :ios, '9.0'/platform :ios, '12.0'/' Podfile
+          
+          # Vérifier si le Podfile contient des références à RunnerTests
+          if grep -q "RunnerTests" Podfile; then
+            # Modifier le Podfile pour gérer le cas où RunnerTests n'existe pas
+            sed -i '' '/target.*RunnerTests/,/end/ s/^/#/' Podfile
+          fi
+          
+          # Exécuter pod install avec l'option --no-integrate pour éviter les problèmes avec RunnerTests
+          pod install --repo-update --no-integrate || pod install --repo-update
+          
+      - name: Décrypter le certificat et le profil de provisioning
+        run: |
+          mkdir -p certificates
+          
+          # Méthode différente de décodage pour le certificat
+          # Ajouter une ligne vide à la fin pour assurer un décodage complet
+          echo "${{ secrets.IOS_CERTIFICATE_P12 }}" > cert_base64.txt
+          cat cert_base64.txt | base64 -d > certificates/ios_cert.p12
+          
+          # Décodage normal pour le profil de provisioning
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE }}" | base64 --decode > certificates/profile.mobileprovision
+          
+          # Vérifier les fichiers
+          ls -la certificates/
+          echo "Taille du certificat P12: $(wc -c < certificates/ios_cert.p12) octets"
+          echo "Taille du profil de provisioning: $(wc -c < certificates/profile.mobileprovision) octets"
+          
+          # Analyser le format du fichier P12
+          file certificates/ios_cert.p12
+
+      - name: Vérifier l intégrité du certificat
+        run: |
+          # Vérifier si le fichier est un certificat P12 valide
+          file certificates/ios_cert.p12
+          
+          # Tester avec OpenSSL pour voir si le certificat est lisible
+          openssl pkcs12 -info -in certificates/ios_cert.p12 -nokeys -passin pass:123456789 -nocerts || echo "⚠️ Impossible de lire le certificat avec le mot de passe"
+
+      # Approche alternative pour l'import du certificat
+      - name: Installer le certificat manuellement
+        run: |
+          # Créer un nouveau keychain
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
+          security create-keychain -p "temp_password" "$KEYCHAIN_PATH"
+          security unlock-keychain -p "temp_password" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          
+          # Rendre le keychain actif et configurer pour ne pas demander de confirmation
+          security list-keychains -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed 's/"//g')
+          security default-keychain -s "$KEYCHAIN_PATH"
+          
+          # Tester l'accès au certificat avec différentes approches
+          echo "Essai 1: Mot de passe sans échappement"
+          openssl pkcs12 -in certificates/ios_cert.p12 -nocerts -nodes -passin pass:123456789 || echo "Échec essai 1"
+          
+          echo "Essai 2: Mot de passe avec guillemets simples"
+          openssl pkcs12 -in certificates/ios_cert.p12 -nocerts -nodes -passin 'pass:123456789' || echo "Échec essai 2"
+          
+          echo "Essai 3: Mot de passe sur la ligne de commande"
+          PASS=123456789 openssl pkcs12 -in certificates/ios_cert.p12 -nocerts -nodes -passin env:PASS || echo "Échec essai 3"
+          
+          # Importation manuelle avec openssl puis security
+          echo "Importation avec OpenSSL"
+          openssl pkcs12 -in certificates/ios_cert.p12 -nocerts -nodes -passin pass:123456789 | \
+            security import /dev/stdin -k "$KEYCHAIN_PATH" -t priv -A -T /usr/bin/codesign || echo "Échec importation clé privée"
+          
+          openssl pkcs12 -in certificates/ios_cert.p12 -clcerts -nokeys -passin pass:123456789 | \
+            security import /dev/stdin -k "$KEYCHAIN_PATH" -t cert -A -T /usr/bin/codesign || echo "Échec importation certificat"
+          
+          # Configurer les permissions
+          security set-key-partition-list -S apple-tool:,apple: -s -k "temp_password" "$KEYCHAIN_PATH" || echo "Échec configuration permissions"
+          
+          # Vérifier l'installation
+          echo "Liste des certificats installés dans le keychain:"
+          security find-identity -p codesigning "$KEYCHAIN_PATH"
+
+      - name: Vérifier que le certificat est installé
+        run: |
+          echo "Liste des certificats installés dans le trousseau temporaire:"
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
+          security find-identity -p codesigning "$KEYCHAIN_PATH"
+          
+          # Si aucun certificat n'est trouvé, afficher une erreur et arrêter le workflow
+          if [[ $(security find-identity -p codesigning "$KEYCHAIN_PATH" | grep -c "valid identities found") == "0 valid identities found" ]]; then
+            echo "❌ Aucun certificat valide n'a été trouvé. Arrêt du workflow."
+            exit 1
+          fi
+
+      - name: Copier le profil de provisioning
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp certificates/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+          UUID=$(security cms -D -i certificates/profile.mobileprovision | plutil -extract UUID xml1 -o - - | plutil -p -)
+          echo "UUID du profil: $UUID"
+          # Renommer le profil avec son UUID pour assurer qu'Xcode le trouve
+          cp certificates/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/${UUID//\"/}.mobileprovision
+
+      - name: Compiler l application iOS pour App Store avec SDK iOS 18
+        run: |
+          cd project
+          
+          # Vérifier la version du SDK utilisée
+          CURRENT_SDK=$(xcrun --sdk iphoneos --show-sdk-version)
+          echo "Version actuelle du SDK iOS: $CURRENT_SDK"
+          
+          # S'assurer que nous utilisons Xcode 16 avec iOS 18 SDK
+          flutter build ios --release --no-codesign
+
+      - name: Préparer le projet Xcode avec les bons paramètres de signature
+        run: |
+          cd project/ios
+          
+          # Obtenir les identifiants nécessaires
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
+          SIGNING_IDENTITY=$(security find-identity -p codesigning "$KEYCHAIN_PATH" | grep "iPhone Distribution" | head -1 | sed -E 's/.*\) ([A-F0-9]+) "(.*)"/\1/')
+          TEAM_ID="${{ secrets.TEAM_ID }}"
+          APP_BUNDLE_ID="${{ secrets.APP_BUNDLE_ID }}"
+          
+          # Créer un script temporaire pour modifier la configuration de signature
+          cat > update_project_settings.rb << 'EOL'
+          require 'xcodeproj'
+          
+          # Ouvrir le projet principal
+          project_path = 'Runner.xcodeproj'
+          project = Xcodeproj::Project.open(project_path)
+          
+          # Configuration pour le target principal seulement (Runner)
+          main_target = project.targets.find { |target| target.name == 'Runner' }
+          
+          if main_target
+            main_target.build_configurations.each do |config|
+              if config.name == 'Release'
+                config.build_settings['CODE_SIGN_IDENTITY'] = 'iPhone Distribution'
+                config.build_settings['DEVELOPMENT_TEAM'] = ENV['TEAM_ID']
+                config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ENV['PROVISIONING_PROFILE_NAME']
+                config.build_settings['CODE_SIGN_STYLE'] = 'Manual'
+                
+                # Mise à jour pour iOS 18 SDK
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+              end
+            end
+          end
+          
+          # Désactiver la signature manuelle pour tous les pods
+          pods_project_path = 'Pods/Pods.xcodeproj'
+          if File.exist?(pods_project_path)
+            pods_project = Xcodeproj::Project.open(pods_project_path)
+            
+            pods_project.targets.each do |target|
+              target.build_configurations.each do |config|
+                # Pour les pods, définir la signature en mode automatique
+                config.build_settings['CODE_SIGN_STYLE'] = 'Automatic'
+                config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ''
+                config.build_settings['CODE_SIGN_IDENTITY'] = ''
+                
+                # S'assurer que la version iOS minimale est à 12.0
+                if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+                  current_version = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f
+                  if current_version < 12.0
+                    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+                  end
+                end
+              end
+            end
+            
+            pods_project.save
+          end
+          
+          # Sauvegarder le projet principal
+          project.save
+          EOL
+          
+          # Exécuter le script Ruby pour modifier les projets
+          TEAM_ID="$TEAM_ID" PROVISIONING_PROFILE_NAME="${{ secrets.PROVISIONING_PROFILE_NAME }}" \
+          gem install xcodeproj
+          ruby update_project_settings.rb
+
+      - name: Créer ExportOptions.plist pour App Store
+        run: |
+          # Obtenir le UUID du profil de provisioning
+          PROFILE_UUID=$(security cms -D -i certificates/profile.mobileprovision | plutil -extract UUID xml1 -o - - | plutil -p -)
+          PROFILE_UUID=${PROFILE_UUID//\"/}
+          
+          cat <<EOF > project/ios/ExportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store-connect</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>compileBitcode</key>
+              <true/>
+              <key>stripSwiftSymbols</key>
+              <true/>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>${{ secrets.APP_BUNDLE_ID }}</key>
+                  <string>${PROFILE_UUID}</string>
+              </dict>
+              <key>teamID</key>
+              <string>${{ secrets.TEAM_ID }}</string>
+              <key>destination</key>
+              <string>export</string>
+          </dict>
+          </plist>
+          EOF
+          
+          cat project/ios/ExportOptions.plist
+
+      - name: Générer IPA pour App Store avec Xcode 16
+        run: |
+          cd project/ios
+          
+          # Afficher l'identité de signature trouvée
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
+          SIGNING_IDENTITY=$(security find-identity -p codesigning "$KEYCHAIN_PATH" | grep "valid identities" -B 1 | head -1 | awk -F '"' '{print $2}')
+          echo "Utilisation de l'identité de signature: $SIGNING_IDENTITY"
+          
+          # Vérifier la version Xcode et du SDK
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          
+          xcodebuild -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -sdk iphoneos \
+            -configuration Release \
+            CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
+            PROVISIONING_PROFILE_SPECIFIER="${{ secrets.PROVISIONING_PROFILE_NAME }}" \
+            -allowProvisioningUpdates \
+            archive -archivePath build/Runner.xcarchive
+            
+          xcodebuild -exportArchive \
+            -archivePath build/Runner.xcarchive \
+            -exportPath build/ios \
+            -exportOptionsPlist ExportOptions.plist \
+            -allowProvisioningUpdates
+
+      # Installer et configurer les clés API App Store Connect
+      - name: Installer Apple API Key
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys/
+          echo "${{ secrets.APPSTORE_API_PRIVATE_KEY }}" > ~/.appstoreconnect/private_keys/AuthKey.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey.p8
+          
+      - name: Sauvegarder IPA en artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-appstore-ipa
+          path: project/ios/build/ios/*.ipa
+          compression-level: 0
+
+      - name: Vérifier l existence de l IPA
+        run: |
+          # Vérifier si l'IPA a été généré
+          IPA_PATH=$(find project/ios/build/ios -name "*.ipa" -type f | head -1)
+          if [ -z "$IPA_PATH" ]; then
+            echo "⚠️ Aucun fichier IPA n'a été trouvé!"
+            echo "Contenu du répertoire de build:"
+            ls -la project/ios/build/ios/
+            exit 1
+          else
+            echo "✅ IPA trouvé: $IPA_PATH"
+            echo "Taille: $(wc -c < "$IPA_PATH") octets"
+            # Exporter le chemin de l'IPA pour l'étape suivante
+            echo "IPA_PATH=$IPA_PATH" >> $GITHUB_ENV
+          fi
+
+      - name: Upload app to TestFlight
+        uses: apple-actions/upload-testflight-build@v3
+        with:
+          app-path: ${{ env.IPA_PATH }}
+          issuer-id: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
